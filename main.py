@@ -14,6 +14,7 @@ window = Window()
 form = Form()
 form.setupUi(window)
 
+
 def reset_db():
     conn = sqlite3.connect('kurs.db')
     cur = conn.cursor()
@@ -56,11 +57,15 @@ currencies = dict()
 for tag in soup.find_all('option'):
     currencies[tag.contents[0].strip()] = tag['value']
 
+
 def combobox_load():
     form.comboBox.clear()
+    form.label_5.setText("")
+    form.label_6.setText("")
     for item, value in currencies.items():
         form.comboBox.addItem(item, value)
     form.label_5.setText("Список валют загружен успешно!")
+
 
 def get_data():
     reset_db()
@@ -69,22 +74,27 @@ def get_data():
         "https://cbr.ru/currency_base/dynamics/?UniDbQuery.Posted=True&UniDbQuery.so=1&UniDbQuery.mode=1&UniDbQuery.date_req1=&UniDbQuery.date_req2=&UniDbQuery.VAL_NM_RQ=" + val_code + "&UniDbQuery.From=" + data_min_date + "&UniDbQuery.To=" + data_max_date,
         headers=headers)
     soup = BeautifulSoup(response.text, features="html.parser")
-    counter = 0
     insert_values = []
     for tag in soup.find_all('tr'):
-        if counter > 1:
-            actual_date = str(tag.contents[1]).replace('<td>', '').replace('</td>', '').strip()
-            quantity = str(tag.contents[3]).replace('<td>', '').replace('</td>', '').strip()
-            kurs = str(tag.contents[5]).replace('<td>', '').replace('</td>', '').strip().replace(',', '.').replace(' ','')
-            value = (actual_date, quantity, kurs)
-            insert_values.append(value)
+        date_td = str(tag.contents[1])
+        if 'colspan' in date_td or '<th>' in date_td:
+            continue
+        actual_date = date_td.replace('<td>', '').replace('</td>', '').strip()
+        quantity = str(tag.contents[3]).replace('<td>', '').replace('</td>', '').strip()
+        kurs = str(tag.contents[5]).replace('<td>', '').replace('</td>', '').strip().replace(',', '.').replace(' ', '')
+        value = (actual_date, quantity, kurs)
+        insert_values.append(value)
 
-        counter += 1
     insert_kurs(insert_values)
+    form.label_6.setText("Данные успешно обработаны и сохранены в базу данных!")
 
+
+def reset_label():
+    form.label_6.setText("")
 
 form.pushButton.clicked.connect(combobox_load)
 form.pushButton_2.clicked.connect(get_data)
+form.comboBox.currentIndexChanged.connect(reset_label)
 
 window.show()
 app.exec()
